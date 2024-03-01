@@ -3,7 +3,12 @@ mod rock_paper_scissor;
 use std::cmp::min;
 
 use rand::Rng;
-use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
+use sdl2::{
+    event::Event,
+    keyboard::Keycode,
+    pixels::Color,
+    rect::{Point, Rect},
+};
 
 #[derive(Clone, Copy)]
 struct BufData {
@@ -17,7 +22,7 @@ fn in_bounds(y: &i32, x: &i32, grid_h: &i32, grid_w: &i32) -> bool {
 
 fn main() -> Result<(), String> {
     let (scr_width, scr_height) = (1080, 720);
-    let block_size: i32 = 5;
+    let block_size: i32 = 8;
     let max_intensity: i32 = 5;
 
     let (grid_width, grid_height) = (
@@ -61,12 +66,12 @@ fn main() -> Result<(), String> {
         grid_height as usize
     ];
 
-    canvas.set_draw_color(background_color);
-    canvas.fill_rect(screen_area)?;
+    // canvas.set_draw_color(background_color);
+    // canvas.fill_rect(screen_area)?;
 
     while running {
-        canvas.set_draw_color(background_color);
-        canvas.fill_rect(screen_area)?;
+        // canvas.set_draw_color(background_color);
+        // canvas.fill_rect(screen_area)?;
 
         for event in event_queue.poll_iter() {
             match event {
@@ -109,7 +114,7 @@ fn main() -> Result<(), String> {
                         }
                         1 => {
                             if neighbour_pixel.color == 2 {
-                                neighbour_pixel.color = 1;
+                                neighbour_pixel.color = 0;
                                 neighbour_pixel.intensity = max_intensity;
                                 buf[y][x].intensity = min(buf[y][x].intensity + 1, max_intensity);
                                 // buf[y][x].intensity = 10;
@@ -117,7 +122,7 @@ fn main() -> Result<(), String> {
                         }
                         2 => {
                             if neighbour_pixel.color == 3 {
-                                neighbour_pixel.color = 2;
+                                neighbour_pixel.color = 0;
                                 neighbour_pixel.intensity = max_intensity;
                                 buf[y][x].intensity = min(buf[y][x].intensity + 1, max_intensity);
                                 // buf[y][x].intensity = 10;
@@ -125,7 +130,7 @@ fn main() -> Result<(), String> {
                         }
                         3 => {
                             if neighbour_pixel.color == 1 {
-                                neighbour_pixel.color = 3;
+                                neighbour_pixel.color = 0;
                                 neighbour_pixel.intensity = max_intensity;
                                 buf[y][x].intensity = min(buf[y][x].intensity + 1, max_intensity);
                                 // buf[y][x].intensity = 10;
@@ -145,9 +150,9 @@ fn main() -> Result<(), String> {
 
                 match buf[y][x].color {
                     0 => rect_color = Color::RGBA(200, 200, 200, 0),
-                    1 => rect_color = Color::RGB(200, 20, 20),
-                    2 => rect_color = Color::RGB(20, 200, 20),
-                    3 => rect_color = Color::RGB(20, 20, 200),
+                    1 => rect_color = Color::RGB(246, 122, 17),
+                    2 => rect_color = Color::RGB(208, 37, 37),
+                    3 => rect_color = Color::RGB(35, 119, 181),
                     _ => rect_color = Color::RGB(20, 20, 20),
                 }
 
@@ -161,6 +166,22 @@ fn main() -> Result<(), String> {
                     ))?;
                 }
             }
+        }
+
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
+
+        for x in 0..buf[0].len() {
+            canvas.draw_line(
+                Point::new((x as i32) * block_size, (0 as i32) * block_size),
+                Point::new((x as i32) * block_size, (scr_height as i32) * block_size),
+            )?;
+        }
+
+        for y in 0..buf.len() {
+            canvas.draw_line(
+                Point::new((0 as i32) * block_size, (y as i32) * block_size),
+                Point::new((scr_width as i32) * block_size, (y as i32) * block_size),
+            )?;
         }
 
         canvas.present();
