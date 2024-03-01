@@ -1,3 +1,5 @@
+mod rock_paper_scissor;
+
 use std::cmp::min;
 
 use rand::Rng;
@@ -22,6 +24,8 @@ fn main() -> Result<(), String> {
         scr_width as i32 / block_size,
         scr_height as i32 / block_size,
     );
+
+    let background_color = Color::RGBA(54, 69, 79, 255);
 
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
@@ -57,12 +61,9 @@ fn main() -> Result<(), String> {
         grid_height as usize
     ];
 
-    canvas.set_draw_color(Color::RGBA(200, 200, 200, 255));
-    canvas.fill_rect(screen_area)?;
-
     while running {
-        // canvas.set_draw_color(Color::RGBA(200, 200, 200, 255));
-        // canvas.fill_rect(screen_area)?;
+        canvas.set_draw_color(background_color);
+        canvas.fill_rect(screen_area)?;
 
         for event in event_queue.poll_iter() {
             match event {
