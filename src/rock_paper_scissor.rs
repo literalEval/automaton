@@ -46,7 +46,7 @@ fn draw() {
     //                 }
     //                 1 => {
     //                     if neighbour_pixel.color == 2 {
-    //                         neighbour_pixel.color = 0;
+    //                         neighbour_pixel.color = 1;
     //                         neighbour_pixel.intensity = max_intensity;
     //                         buf[y][x].intensity = min(buf[y][x].intensity + 1, max_intensity);
     //                         // buf[y][x].intensity = 10;
@@ -54,7 +54,7 @@ fn draw() {
     //                 }
     //                 2 => {
     //                     if neighbour_pixel.color == 3 {
-    //                         neighbour_pixel.color = 0;
+    //                         neighbour_pixel.color = 2;
     //                         neighbour_pixel.intensity = max_intensity;
     //                         buf[y][x].intensity = min(buf[y][x].intensity + 1, max_intensity);
     //                         // buf[y][x].intensity = 10;
@@ -62,7 +62,7 @@ fn draw() {
     //                 }
     //                 3 => {
     //                     if neighbour_pixel.color == 1 {
-    //                         neighbour_pixel.color = 0;
+    //                         neighbour_pixel.color = 3;
     //                         neighbour_pixel.intensity = max_intensity;
     //                         buf[y][x].intensity = min(buf[y][x].intensity + 1, max_intensity);
     //                         // buf[y][x].intensity = 10;
@@ -82,19 +82,21 @@ fn draw() {
 
     //         match buf[y][x].color {
     //             0 => rect_color = Color::RGBA(200, 200, 200, 0),
-    //             1 => rect_color = Color::RGBA(200, 20, 20, 130 + 30 * (buf[y][x].intensity) as u8),
-    //             2 => rect_color = Color::RGBA(20, 200, 20, 130 + 30 * (buf[y][x].intensity) as u8),
-    //             3 => rect_color = Color::RGBA(20, 20, 200, 130 + 30 * (buf[y][x].intensity) as u8),
-    //             _ => rect_color = Color::RGBA(20, 20, 20, 130 + 30 * (buf[y][x].intensity) as u8),
+    //             1 => rect_color = Color::RGB(200, 20, 20),
+    //             2 => rect_color = Color::RGB(20, 200, 20),
+    //             3 => rect_color = Color::RGB(20, 20, 200),
+    //             _ => rect_color = Color::RGB(20, 20, 20),
     //         }
 
-    //         canvas.set_draw_color(rect_color);
-    //         canvas.fill_rect(Rect::new(
-    //             (x as i32) * block_size,
-    //             (y as i32) * block_size,
-    //             block_size as u32,
-    //             block_size as u32,
-    //         ))?;
+    //         if buf[y][x].color != 0 {
+    //             canvas.set_draw_color(rect_color);
+    //             canvas.fill_rect(Rect::new(
+    //                 (x as i32) * block_size,
+    //                 (y as i32) * block_size,
+    //                 block_size as u32,
+    //                 block_size as u32,
+    //             ))?;
+    //         }
     //     }
     // }
 

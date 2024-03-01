@@ -17,15 +17,15 @@ fn in_bounds(y: &i32, x: &i32, grid_h: &i32, grid_w: &i32) -> bool {
 
 fn main() -> Result<(), String> {
     let (scr_width, scr_height) = (1080, 720);
-    let block_size: i32 = 10;
-    let max_intensity: i32 = 3;
+    let block_size: i32 = 5;
+    let max_intensity: i32 = 5;
 
     let (grid_width, grid_height) = (
         scr_width as i32 / block_size,
         scr_height as i32 / block_size,
     );
 
-    let background_color = Color::RGBA(54, 69, 79, 255);
+    let background_color = Color::RGBA(197, 214, 220, 255);
 
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
@@ -60,6 +60,9 @@ fn main() -> Result<(), String> {
         ];
         grid_height as usize
     ];
+
+    canvas.set_draw_color(background_color);
+    canvas.fill_rect(screen_area)?;
 
     while running {
         canvas.set_draw_color(background_color);
@@ -106,7 +109,7 @@ fn main() -> Result<(), String> {
                         }
                         1 => {
                             if neighbour_pixel.color == 2 {
-                                neighbour_pixel.color = 0;
+                                neighbour_pixel.color = 1;
                                 neighbour_pixel.intensity = max_intensity;
                                 buf[y][x].intensity = min(buf[y][x].intensity + 1, max_intensity);
                                 // buf[y][x].intensity = 10;
@@ -114,7 +117,7 @@ fn main() -> Result<(), String> {
                         }
                         2 => {
                             if neighbour_pixel.color == 3 {
-                                neighbour_pixel.color = 0;
+                                neighbour_pixel.color = 2;
                                 neighbour_pixel.intensity = max_intensity;
                                 buf[y][x].intensity = min(buf[y][x].intensity + 1, max_intensity);
                                 // buf[y][x].intensity = 10;
@@ -122,7 +125,7 @@ fn main() -> Result<(), String> {
                         }
                         3 => {
                             if neighbour_pixel.color == 1 {
-                                neighbour_pixel.color = 0;
+                                neighbour_pixel.color = 3;
                                 neighbour_pixel.intensity = max_intensity;
                                 buf[y][x].intensity = min(buf[y][x].intensity + 1, max_intensity);
                                 // buf[y][x].intensity = 10;
@@ -142,30 +145,21 @@ fn main() -> Result<(), String> {
 
                 match buf[y][x].color {
                     0 => rect_color = Color::RGBA(200, 200, 200, 0),
-                    1 => {
-                        rect_color =
-                            Color::RGBA(200, 20, 20, 130 + 30 * (buf[y][x].intensity) as u8)
-                    }
-                    2 => {
-                        rect_color =
-                            Color::RGBA(20, 200, 20, 130 + 30 * (buf[y][x].intensity) as u8)
-                    }
-                    3 => {
-                        rect_color =
-                            Color::RGBA(20, 20, 200, 130 + 30 * (buf[y][x].intensity) as u8)
-                    }
-                    _ => {
-                        rect_color = Color::RGBA(20, 20, 20, 130 + 30 * (buf[y][x].intensity) as u8)
-                    }
+                    1 => rect_color = Color::RGB(200, 20, 20),
+                    2 => rect_color = Color::RGB(20, 200, 20),
+                    3 => rect_color = Color::RGB(20, 20, 200),
+                    _ => rect_color = Color::RGB(20, 20, 20),
                 }
 
-                canvas.set_draw_color(rect_color);
-                canvas.fill_rect(Rect::new(
-                    (x as i32) * block_size,
-                    (y as i32) * block_size,
-                    block_size as u32,
-                    block_size as u32,
-                ))?;
+                if buf[y][x].color != 0 {
+                    canvas.set_draw_color(rect_color);
+                    canvas.fill_rect(Rect::new(
+                        (x as i32) * block_size,
+                        (y as i32) * block_size,
+                        block_size as u32,
+                        block_size as u32,
+                    ))?;
+                }
             }
         }
 
