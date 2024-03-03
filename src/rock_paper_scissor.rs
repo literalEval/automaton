@@ -1,5 +1,10 @@
 use rand::{rngs::ThreadRng, Rng};
-use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::{Point, Rect}};
+use sdl2::{
+    event::Event,
+    keyboard::Keycode,
+    pixels::Color,
+    rect::{Point, Rect},
+};
 use std::cmp::min;
 
 use crate::GlobalContext;
@@ -67,7 +72,7 @@ impl RockPaperScissor {
         }
     }
 
-    pub fn draw(&mut self, context: &mut GlobalContext) -> Result<(), String>{
+    pub fn draw(&mut self, context: &mut GlobalContext) -> Result<(), String> {
         for y in 0..self.buf.len() {
             for x in 0..self.buf[0].len() {
                 let neighbour_y = self.rand_gen.gen_range(-1..=1) + (y as i32);
@@ -84,7 +89,7 @@ impl RockPaperScissor {
                     let mut neighbour_pixel = self.buf[neighbour_y as usize][neighbour_x as usize];
 
                     match self.buf[y][x].color {
-                        0 => {
+                        0 | 10 | 20 | 30 => {
                             if neighbour_pixel.color != 0 && neighbour_pixel.intensity > 0 {
                                 self.buf[y][x].color = neighbour_pixel.color;
                                 self.buf[y][x].intensity = neighbour_pixel.intensity - 1;
@@ -92,7 +97,7 @@ impl RockPaperScissor {
                         }
                         1 => {
                             if neighbour_pixel.color == 2 {
-                                neighbour_pixel.color = 0;
+                                neighbour_pixel.color = 20;
                                 neighbour_pixel.intensity = self.max_intensity;
                                 self.buf[y][x].intensity =
                                     min(self.buf[y][x].intensity + 1, self.max_intensity);
@@ -101,7 +106,7 @@ impl RockPaperScissor {
                         }
                         2 => {
                             if neighbour_pixel.color == 3 {
-                                neighbour_pixel.color = 0;
+                                neighbour_pixel.color = 30;
                                 neighbour_pixel.intensity = self.max_intensity;
                                 self.buf[y][x].intensity =
                                     min(self.buf[y][x].intensity + 1, self.max_intensity);
@@ -110,7 +115,7 @@ impl RockPaperScissor {
                         }
                         3 => {
                             if neighbour_pixel.color == 1 {
-                                neighbour_pixel.color = 0;
+                                neighbour_pixel.color = 10;
                                 neighbour_pixel.intensity = self.max_intensity;
                                 self.buf[y][x].intensity =
                                     min(self.buf[y][x].intensity + 1, self.max_intensity);
@@ -128,13 +133,15 @@ impl RockPaperScissor {
         for y in 0..self.buf.len() {
             for x in 0..self.buf[0].len() {
                 let rect_color: Color;
+                let new_intensity =
+                    (200 + (50 - (50 * self.buf[y][x].intensity) / self.max_intensity)) as u8;
 
                 match self.buf[y][x].color {
-                    0 => rect_color = Color::RGBA(200, 200, 200, 0),
-                    1 => rect_color = Color::RGB(246, 122, 17),
-                    2 => rect_color = Color::RGB(208, 37, 37),
-                    3 => rect_color = Color::RGB(35, 119, 181),
-                    _ => rect_color = Color::RGB(20, 20, 20),
+                    0 => rect_color = context.bg_color,
+                    1 | 10 => rect_color = Color::RGBA(246, 122, 17, new_intensity),
+                    2 | 20 => rect_color = Color::RGBA(208, 37, 37, new_intensity),
+                    3 | 30 => rect_color = Color::RGBA(35, 119, 181, new_intensity),
+                    _ => rect_color = Color::RGBA(20, 20, 20, new_intensity),
                 }
 
                 if self.buf[y][x].color != 0 {

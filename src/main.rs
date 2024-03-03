@@ -1,13 +1,7 @@
 mod rock_paper_scissor;
 
-use rock_paper_scissor::{BufData, RockPaperScissor};
-
-use sdl2::{
-    pixels::Color,
-    rect::Rect,
-    render::Canvas,
-    video::Window,
-};
+use rock_paper_scissor::RockPaperScissor;
+use sdl2::{pixels::Color, rect::Rect, render::Canvas, video::Window};
 
 struct GlobalContext<'a> {
     scr_width: u32,
@@ -61,7 +55,7 @@ fn main() -> Result<(), String> {
         .build()
         .expect("Failed to build context");
 
-    let mut global_c = GlobalContext::new(1080, 720, 8, bg_color, &mut canvas);
+    let mut global_c = GlobalContext::new(scr_width, scr_height, 4, bg_color, &mut canvas);
     global_c
         .canvas
         .set_blend_mode(sdl2::render::BlendMode::Blend);
