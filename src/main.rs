@@ -1,5 +1,7 @@
+mod neural_cellular;
 mod rock_paper_scissor;
 
+use neural_cellular::NeuralCellular;
 use rock_paper_scissor::RockPaperScissor;
 use sdl2::{pixels::Color, rect::Rect, render::Canvas, video::Window};
 
@@ -40,7 +42,8 @@ impl<'a> GlobalContext<'a> {
 fn main() -> Result<(), String> {
     let scr_width = 1080;
     let scr_height = 720;
-    let bg_color = Color::RGBA(197, 214, 220, 255);
+    // let bg_color = Color::RGBA(197, 214, 220, 255);
+    let bg_color = Color::RGBA(0, 0, 0, 255);
 
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
@@ -55,7 +58,7 @@ fn main() -> Result<(), String> {
         .build()
         .expect("Failed to build context");
 
-    let mut global_c = GlobalContext::new(scr_width, scr_height, 4, bg_color, &mut canvas);
+    let mut global_c = GlobalContext::new(scr_width, scr_height, 5, bg_color, &mut canvas);
     global_c
         .canvas
         .set_blend_mode(sdl2::render::BlendMode::Blend);
@@ -63,18 +66,30 @@ fn main() -> Result<(), String> {
     let mut event_queue = sdl_context.event_pump().unwrap();
 
     let mut rps = RockPaperScissor::new();
+    let mut nca = NeuralCellular::new();
+
     rps.setup(&global_c);
+    nca.setup(&global_c);
+
+    let mut frame = 0;
 
     while global_c.running {
         global_c.canvas.set_draw_color(global_c.bg_color);
         global_c.canvas.fill_rect(global_c.screen_area)?;
 
         for event in event_queue.poll_iter() {
-            rps.handle_event(&event, &mut global_c);
+            // rps.handle_event(&event, &mut global_c);
+            nca.handle_event(&event, &mut global_c);
         }
 
-        rps.draw(&mut global_c)?;
-        global_c.canvas.present();
+        // rps.draw(&mut global_c)?;
+        nca.draw(&mut global_c)?;
+
+        if frame == 1 {
+            global_c.canvas.present();
+        }
+
+        frame = (frame + 1) % 2;
     }
 
     Ok(())
