@@ -1,6 +1,8 @@
 mod neural_cellular;
 mod rock_paper_scissor;
+mod utils;
 
+use utils::*;
 use neural_cellular::NeuralCellular;
 use rock_paper_scissor::RockPaperScissor;
 use sdl2::{pixels::Color, rect::Rect, render::Canvas, video::Window};
@@ -15,6 +17,7 @@ struct GlobalContext<'a> {
     bg_color: Color,
     running: bool,
     is_playing: bool,
+    draw_grid_lines: bool,
     canvas: &'a mut Canvas<Window>,
 }
 
@@ -35,7 +38,8 @@ impl<'a> GlobalContext<'a> {
             screen_area: Rect::new(0, 0, scr_w, scr_h),
             bg_color,
             running: true,
-            is_playing: false,
+            is_playing: true,
+            draw_grid_lines: true,
             canvas,
         }
     }
@@ -84,12 +88,16 @@ fn main() -> Result<(), String> {
             nca.handle_event(&event, &mut global_c);
         }
 
-        // rps.draw(&mut global_c)?;
-
         if global_c.is_playing {
+            // rps.draw(&mut global_c)?;
             nca.mutate(&mut global_c);
             nca.activate();
+
+            if global_c.draw_grid_lines {
+                render::draw_grid(&mut global_c)?;
+            }
         }
+
         nca.draw(&mut global_c)?;
 
         if frame == 1 {

@@ -1,13 +1,5 @@
-use rand::{rngs::ThreadRng, Rng};
-use sdl2::{
-    event::Event,
-    keyboard::Keycode,
-    libc::abs,
-    mouse::MouseButton,
-    pixels::Color,
-    rect::{Point, Rect},
-};
-use std::cmp::min;
+use rand::Rng;
+use sdl2::{event::Event, keyboard::Keycode, mouse::MouseButton, pixels::Color, rect::Rect};
 
 use crate::GlobalContext;
 
@@ -31,20 +23,20 @@ pub(crate) struct BufData {
 
 pub(crate) struct NeuralCellular {
     cur_draw_color: i32,
-    max_intensity: i32,
     buf: Vec<Vec<BufData>>,
     filter: [[f32; 3]; 3],
+    wrap_on_edge: bool,
 }
 
 impl NeuralCellular {
     pub fn new() -> Self {
         Self {
             cur_draw_color: 2,
-            max_intensity: 8,
             buf: vec![vec![BufData {
                 color: 0,
                 intensity: 0.,
             }]],
+            wrap_on_edge: true,
             // filter: [
             //     [0.80, -0.85, 0.80],
             //     [-0.85, -0.20, 0.85],
@@ -54,8 +46,7 @@ impl NeuralCellular {
             // filter: [[0.0, 1.0, 0.0], [1.0, 1.0, 1.0], [0.0, 1.0, 0.0]],
             // filter: [[0.2, -0.1, -0.5], [-0.3, 1.0, 0.0], [0.3, -0.1, 0.1]],
             // Conway
-            filter: [[1.0, 1.0, 1.0], [1.0, 9.0, 1.0], [1.0, 1.0, 1.0]],
-
+            // filter: [[1.0, 1.0, 1.0], [1.0, 9.0, 1.0], [1.0, 1.0, 1.0]],
             // Wave
             // filter: [
             //     [0.565, -0.716, 0.565],
@@ -63,7 +54,7 @@ impl NeuralCellular {
             //     [0.565, -0.716, 0.565],
             // ],
             // Worm
-            // filter: [[0.68, -0.9, 0.68], [-0.9, -0.66, -0.9], [0.68, -0.9, 0.68]],
+            filter: [[0.68, -0.9, 0.68], [-0.9, -0.66, -0.9], [0.68, -0.9, 0.68]],
         }
     }
 
@@ -80,14 +71,11 @@ impl NeuralCellular {
             context.grid_height as usize
         ];
 
-        // for y in 0..self.buf.len() {
-        //     for x in 0..self.buf[0].len() {
-        //         self.buf[y][x].intensity = rand_gen.gen_range(-1.0..=1.0);
-        //         // self.buf[y][x].intensity = if rand_gen.gen_bool(0.5) { 1.0 } else { 0.0 };
-        //     }
-        // }
-
-        // println!("{:?}", self.buf);
+        for y in 0..self.buf.len() {
+            for x in 0..self.buf[0].len() {
+                self.buf[y][x].intensity = rand_gen.gen_range(-1.0..=1.0);
+            }
+        }
     }
 
     pub fn handle_event(&mut self, event: &Event, context: &mut GlobalContext) {
@@ -130,37 +118,41 @@ impl NeuralCellular {
 
     pub fn mutate(&mut self, context: &mut GlobalContext) {
         let mut old_buf: Vec<Vec<BufData>> = self.buf.clone();
-    
+
         for y in 0..self.buf.len() {
             for x in 0..self.buf[0].len() {
                 let mut new_intensity: f32 = 0.;
-    
+
                 for delta in DELTA {
-                    // let neighbour_y = y as i32 + delta.0;
-                    // let neighbour_x = x as i32 + delta.1;
-    
-                    let neighbour_y =
-                        ((y as i32 + delta.0) + context.grid_height) % context.grid_height;
-                    let neighbour_x =
-                        ((x as i32 + delta.1) + context.grid_width) % context.grid_width;
-    
-                    // if !Self::in_bounds(
-                    //     &neighbour_y,
-                    //     &neighbour_x,
-                    //     &context.grid_height,
-                    //     &context.grid_width,
-                    // ) {
-                    //     continue;
-                    // }
-    
+                    let (neighbour_y, neighbour_x): (i32, i32);
+
+                    if self.wrap_on_edge {
+                        neighbour_y =
+                            ((y as i32 + delta.0) + context.grid_height) % context.grid_height;
+                        neighbour_x =
+                            ((x as i32 + delta.1) + context.grid_width) % context.grid_width;
+                    } else {
+                        neighbour_y = y as i32 + delta.0;
+                        neighbour_x = x as i32 + delta.1;
+
+                        if !Self::in_bounds(
+                            &neighbour_y,
+                            &neighbour_x,
+                            &context.grid_height,
+                            &context.grid_width,
+                        ) {
+                            continue;
+                        }
+                    }
+
                     new_intensity += self.buf[neighbour_y as usize][neighbour_x as usize].intensity
                         * self.filter[(delta.0 + 1) as usize][(delta.1 + 1) as usize];
                 }
-    
+
                 old_buf[y][x].intensity = new_intensity;
             }
         }
-    
+
         self.buf = old_buf;
     }
 
@@ -169,7 +161,6 @@ impl NeuralCellular {
             for x in 0..self.buf[0].len() {
                 let rect_color: Color;
 
-                // println!("{:?}", self.buf[y][x].intensity);
                 let new_intensity = (self.buf[y][x].intensity * 200.).round() as u8;
 
                 match self.buf[y][x].color {
@@ -181,7 +172,6 @@ impl NeuralCellular {
                 }
 
                 if self.buf[y][x].color != 0 {
-                    // println!("{:?}", new_intensity);
                     context.canvas.set_draw_color(rect_color);
                     context.canvas.fill_rect(Rect::new(
                         (x as i32) * context.block_size,
@@ -192,34 +182,6 @@ impl NeuralCellular {
                 }
             }
         }
-
-        // context.canvas.set_draw_color(Color::RGB(0, 0, 0));
-
-        // for x in 0..self.buf[0].len() {
-        //     context.canvas.draw_line(
-        //         Point::new(
-        //             (x as i32) * context.block_size,
-        //             (0 as i32) * context.block_size,
-        //         ),
-        //         Point::new(
-        //             (x as i32) * context.block_size,
-        //             (context.scr_height as i32) * context.block_size,
-        //         ),
-        //     )?;
-        // }
-
-        // for y in 0..self.buf.len() {
-        //     context.canvas.draw_line(
-        //         Point::new(
-        //             (0 as i32) * context.block_size,
-        //             (y as i32) * context.block_size,
-        //         ),
-        //         Point::new(
-        //             (context.scr_width as i32) * context.block_size,
-        //             (y as i32) * context.block_size,
-        //         ),
-        //     )?;
-        // }
 
         Ok(())
     }
@@ -253,13 +215,13 @@ impl NeuralCellular {
                 // self.buf[y][x].intensity = self.gaussian(self.buf[y][x].intensity, 0.35);
 
                 // Worm
-                // self.buf[y][x].intensity = self.inverse_gaussian(self.buf[y][x].intensity);
+                self.buf[y][x].intensity = self.inverse_gaussian(self.buf[y][x].intensity);
 
                 // Wave
                 // self.buf[y][x].intensity = self.activate_wave(self.buf[y][x].intensity);
 
                 // Conway
-                self.buf[y][x].intensity = self.activate_conway(self.buf[y][x].intensity);
+                // self.buf[y][x].intensity = self.activate_conway(self.buf[y][x].intensity);
             }
         }
     }
