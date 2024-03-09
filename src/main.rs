@@ -1,10 +1,12 @@
 mod models;
 mod utils;
 
-use utils::*;
+use models::forest::Forest;
 use models::neural_cellular::NeuralCellular;
 use models::rock_paper_scissor::RockPaperScissor;
+use sdl2::gfx::framerate::FPSManager;
 use sdl2::{pixels::Color, rect::Rect, render::Canvas, video::Window};
+use utils::*;
 
 struct GlobalContext<'a> {
     scr_width: u32,
@@ -38,7 +40,7 @@ impl<'a> GlobalContext<'a> {
             bg_color,
             running: true,
             is_playing: true,
-            draw_grid_lines: true,
+            draw_grid_lines: false,
             canvas,
         }
     }
@@ -47,8 +49,8 @@ impl<'a> GlobalContext<'a> {
 fn main() -> Result<(), String> {
     let scr_width = 1080;
     let scr_height = 720;
-    let bg_color = Color::RGBA(197, 214, 220, 255);
-    // let bg_color = Color::RGBA(0, 0, 0, 255);
+    let bg_color = Color::RGBA(197, 214, 220, 0);
+    // let bg_color = Color::RGBA(0, 0, 0, 0);
 
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
@@ -63,47 +65,55 @@ fn main() -> Result<(), String> {
         .build()
         .expect("Failed to build context");
 
-    let mut global_c = GlobalContext::new(scr_width, scr_height, 10, bg_color, &mut canvas);
-    global_c
-        .canvas
-        .set_blend_mode(sdl2::render::BlendMode::Blend);
+    let mut fps = FPSManager::new();
+
+    let mut global_c = GlobalContext::new(scr_width, scr_height, 6, bg_color, &mut canvas);
+    global_c.canvas.set_blend_mode(sdl2::render::BlendMode::Add);
 
     let mut event_queue = sdl_context.event_pump().unwrap();
 
     let mut rps = RockPaperScissor::new();
     let mut nca = NeuralCellular::new();
+    let mut forest = Forest::new();
 
     rps.setup(&global_c);
     nca.setup(&global_c);
+    forest.setup(&global_c);
 
     let mut frame = 0;
 
     while global_c.running {
-        global_c.canvas.set_draw_color(global_c.bg_color);
-        global_c.canvas.fill_rect(global_c.screen_area)?;
+        // global_c.canvas.set_draw_color(global_c.bg_color);
+        // global_c.canvas.clear();
 
         for event in event_queue.poll_iter() {
             // rps.handle_event(&event, &mut global_c);
-            nca.handle_event(&event, &mut global_c);
+            // nca.handle_event(&event, &mut global_c);
+            forest.handle_event(&event, &mut global_c);
         }
 
         if global_c.is_playing {
             // rps.draw(&mut global_c)?;
-            nca.mutate(&mut global_c);
-            nca.activate();
+            // nca.mutate(&mut global_c);
+            // nca.activate();
+
+            if frame == 40 {
+                forest.mutate(&global_c);
+            }
 
             if global_c.draw_grid_lines {
                 render::draw_grid(&mut global_c)?;
             }
         }
 
-        nca.draw(&mut global_c)?;
+        // nca.draw(&mut global_c)?;
+        forest.draw(&mut global_c)?;
 
-        if frame == 1 {
+        // if frame == 1 {
             global_c.canvas.present();
-        }
+        // }
 
-        frame = (frame + 1) % 2;
+        frame = (frame + 1) % 41;
     }
 
     Ok(())
