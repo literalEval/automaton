@@ -39,7 +39,7 @@ pub(crate) struct NeuralCellular {
 impl NeuralCellular {
     pub fn new() -> Self {
         Self {
-            cur_draw_color: 3,
+            cur_draw_color: 2,
             max_intensity: 8,
             buf: vec![vec![BufData {
                 color: 0,
@@ -53,14 +53,15 @@ impl NeuralCellular {
             // Path
             // filter: [[0.0, 1.0, 0.0], [1.0, 1.0, 1.0], [0.0, 1.0, 0.0]],
             // filter: [[0.2, -0.1, -0.5], [-0.3, 1.0, 0.0], [0.3, -0.1, 0.1]],
-            // filter: [[1.0, 1.0, 1.0], [1.0, 9.0, 1.0], [1.0, 1.0, 1.0]],
+            // Conway
+            filter: [[1.0, 1.0, 1.0], [1.0, 9.0, 1.0], [1.0, 1.0, 1.0]],
 
             // Wave
-            filter: [
-                [0.565, -0.716, 0.565],
-                [-0.716, 0.627, -0.716],
-                [0.565, -0.716, 0.565],
-            ],
+            // filter: [
+            //     [0.565, -0.716, 0.565],
+            //     [-0.716, 0.627, -0.716],
+            //     [0.565, -0.716, 0.565],
+            // ],
             // Worm
             // filter: [[0.68, -0.9, 0.68], [-0.9, -0.66, -0.9], [0.68, -0.9, 0.68]],
         }
@@ -79,12 +80,12 @@ impl NeuralCellular {
             context.grid_height as usize
         ];
 
-        for y in 0..self.buf.len() {
-            for x in 0..self.buf[0].len() {
-                self.buf[y][x].intensity = rand_gen.gen_range(-1.0..=1.0);
-                // self.buf[y][x].intensity = if rand_gen.gen_bool(0.5) { 1.0 } else { 0.0 };
-            }
-        }
+        // for y in 0..self.buf.len() {
+        //     for x in 0..self.buf[0].len() {
+        //         self.buf[y][x].intensity = rand_gen.gen_range(-1.0..=1.0);
+        //         // self.buf[y][x].intensity = if rand_gen.gen_bool(0.5) { 1.0 } else { 0.0 };
+        //     }
+        // }
 
         // println!("{:?}", self.buf);
     }
@@ -120,53 +121,50 @@ impl NeuralCellular {
                 Keycode::R => self.cur_draw_color = 1,
                 Keycode::G => self.cur_draw_color = 2,
                 Keycode::B => self.cur_draw_color = 3,
+                Keycode::P => context.is_playing = !context.is_playing,
                 _ => self.cur_draw_color = 0,
             },
             _ => {}
         }
     }
 
-    pub fn draw(&mut self, context: &mut GlobalContext) -> Result<(), String> {
+    pub fn mutate(&mut self, context: &mut GlobalContext) {
         let mut old_buf: Vec<Vec<BufData>> = self.buf.clone();
-
+    
         for y in 0..self.buf.len() {
             for x in 0..self.buf[0].len() {
                 let mut new_intensity: f32 = 0.;
-
+    
                 for delta in DELTA {
-                    let neighbour_y = y as i32 + delta.0;
-                    let neighbour_x = x as i32 + delta.1;
-
-                    // let neighbour_y =
-                    //     ((y as i32 + delta.0) + context.grid_height) % context.grid_height;
-                    // let neighbour_x =
-                    //     ((x as i32 + delta.1) + context.grid_width) % context.grid_width;
-
-                    if !Self::in_bounds(
-                        &neighbour_y,
-                        &neighbour_x,
-                        &context.grid_height,
-                        &context.grid_width,
-                    ) {
-                        continue;
-                    }
-
+                    // let neighbour_y = y as i32 + delta.0;
+                    // let neighbour_x = x as i32 + delta.1;
+    
+                    let neighbour_y =
+                        ((y as i32 + delta.0) + context.grid_height) % context.grid_height;
+                    let neighbour_x =
+                        ((x as i32 + delta.1) + context.grid_width) % context.grid_width;
+    
+                    // if !Self::in_bounds(
+                    //     &neighbour_y,
+                    //     &neighbour_x,
+                    //     &context.grid_height,
+                    //     &context.grid_width,
+                    // ) {
+                    //     continue;
+                    // }
+    
                     new_intensity += self.buf[neighbour_y as usize][neighbour_x as usize].intensity
                         * self.filter[(delta.0 + 1) as usize][(delta.1 + 1) as usize];
                 }
-
+    
                 old_buf[y][x].intensity = new_intensity;
-
-                // if new_intensity > 1.0 {
-                //     println!("{:?}", new_intensity);
-                //     panic!("err");
-                // }
             }
         }
-
+    
         self.buf = old_buf;
-        self.activate();
+    }
 
+    pub fn draw(&mut self, context: &mut GlobalContext) -> Result<(), String> {
         for y in 0..self.buf.len() {
             for x in 0..self.buf[0].len() {
                 let rect_color: Color;
@@ -238,14 +236,14 @@ impl NeuralCellular {
         if x == 3. || x == 11. || x == 12. {
             return 1.;
         }
-        return 0.;
+        0.
     }
 
     fn activate_wave(&mut self, x: f32) -> f32 {
         f32::min(6., (1.2 * x).abs())
     }
 
-    fn activate(&mut self) {
+    pub fn activate(&mut self) {
         for y in 0..self.buf.len() {
             for x in 0..self.buf[0].len() {
                 // self.buf[y][x].intensity =
@@ -258,7 +256,10 @@ impl NeuralCellular {
                 // self.buf[y][x].intensity = self.inverse_gaussian(self.buf[y][x].intensity);
 
                 // Wave
-                self.buf[y][x].intensity = self.activate_wave(self.buf[y][x].intensity);
+                // self.buf[y][x].intensity = self.activate_wave(self.buf[y][x].intensity);
+
+                // Conway
+                self.buf[y][x].intensity = self.activate_conway(self.buf[y][x].intensity);
             }
         }
     }

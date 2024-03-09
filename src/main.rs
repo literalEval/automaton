@@ -14,6 +14,7 @@ struct GlobalContext<'a> {
     screen_area: Rect,
     bg_color: Color,
     running: bool,
+    is_playing: bool,
     canvas: &'a mut Canvas<Window>,
 }
 
@@ -34,6 +35,7 @@ impl<'a> GlobalContext<'a> {
             screen_area: Rect::new(0, 0, scr_w, scr_h),
             bg_color,
             running: true,
+            is_playing: false,
             canvas,
         }
     }
@@ -42,8 +44,8 @@ impl<'a> GlobalContext<'a> {
 fn main() -> Result<(), String> {
     let scr_width = 1080;
     let scr_height = 720;
-    // let bg_color = Color::RGBA(197, 214, 220, 255);
-    let bg_color = Color::RGBA(0, 0, 0, 255);
+    let bg_color = Color::RGBA(197, 214, 220, 255);
+    // let bg_color = Color::RGBA(0, 0, 0, 255);
 
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
@@ -58,7 +60,7 @@ fn main() -> Result<(), String> {
         .build()
         .expect("Failed to build context");
 
-    let mut global_c = GlobalContext::new(scr_width, scr_height, 5, bg_color, &mut canvas);
+    let mut global_c = GlobalContext::new(scr_width, scr_height, 10, bg_color, &mut canvas);
     global_c
         .canvas
         .set_blend_mode(sdl2::render::BlendMode::Blend);
@@ -83,6 +85,11 @@ fn main() -> Result<(), String> {
         }
 
         // rps.draw(&mut global_c)?;
+
+        if global_c.is_playing {
+            nca.mutate(&mut global_c);
+            nca.activate();
+        }
         nca.draw(&mut global_c)?;
 
         if frame == 1 {
