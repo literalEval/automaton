@@ -1,10 +1,9 @@
-mod neural_cellular;
-mod rock_paper_scissor;
+mod models;
 mod utils;
 
 use utils::*;
-use neural_cellular::NeuralCellular;
-use rock_paper_scissor::RockPaperScissor;
+use models::neural_cellular::NeuralCellular;
+use models::rock_paper_scissor::RockPaperScissor;
 use sdl2::{pixels::Color, rect::Rect, render::Canvas, video::Window};
 
 struct GlobalContext<'a> {
