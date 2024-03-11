@@ -1,5 +1,12 @@
 use rand::Rng;
-use sdl2::{event::Event, keyboard::Keycode, mouse::MouseButton, pixels::Color, rect::Rect};
+use sfml::{
+    graphics::{
+        BlendMode, Color, RectangleShape, RenderStates, RenderTarget, RenderTexture, Shape,
+        Transformable,
+    },
+    system::{Vector2f, Vector2i},
+    window::{event::Event, Key, MouseButton},
+};
 
 use crate::GlobalContext;
 
@@ -80,12 +87,10 @@ impl NeuralCellular {
 
     pub fn handle_event(&mut self, event: &Event, context: &mut GlobalContext) {
         match event {
-            Event::Quit { .. } => context.running = false,
-            Event::MouseMotion {
-                mousestate, x, y, ..
-            } => {
+            Event::Closed { .. } => context.running = false,
+            Event::MouseMoved { x, y, .. } => {
                 // println!("{:?}", mousestate.left());
-                if mousestate.left() {
+                if MouseButton::Left.is_pressed() {
                     self.buf[(y / context.block_size) as usize]
                         [(x / context.block_size) as usize] = BufData {
                         color: self.cur_draw_color,
@@ -93,11 +98,9 @@ impl NeuralCellular {
                     };
                 }
             }
-            Event::MouseButtonDown {
-                mouse_btn, x, y, ..
-            } => {
+            Event::MouseButtonPressed { button, x, y } => {
                 // println!("{:?}", self.buf);
-                if mouse_btn == &MouseButton::Left {
+                if button == &MouseButton::Left {
                     self.buf[(y / context.block_size) as usize]
                         [(x / context.block_size) as usize] = BufData {
                         color: self.cur_draw_color,
@@ -105,11 +108,11 @@ impl NeuralCellular {
                     };
                 }
             }
-            Event::KeyDown { keycode, .. } => match keycode.unwrap() {
-                Keycode::R => self.cur_draw_color = 1,
-                Keycode::G => self.cur_draw_color = 2,
-                Keycode::B => self.cur_draw_color = 3,
-                Keycode::P => context.is_playing = !context.is_playing,
+            Event::KeyPressed { code, .. } => match code {
+                Key::R => self.cur_draw_color = 1,
+                Key::G => self.cur_draw_color = 2,
+                Key::B => self.cur_draw_color = 3,
+                Key::P => context.is_playing = !context.is_playing,
                 _ => self.cur_draw_color = 0,
             },
             _ => {}
@@ -156,7 +159,11 @@ impl NeuralCellular {
         self.buf = old_buf;
     }
 
-    pub fn draw(&mut self, context: &mut GlobalContext) -> Result<(), String> {
+    pub fn draw(
+        &mut self,
+        context: &mut GlobalContext,
+        canvas: &mut RenderTexture,
+    ) -> Result<(), String> {
         for y in 0..self.buf.len() {
             for x in 0..self.buf[0].len() {
                 let rect_color: Color;
@@ -164,21 +171,29 @@ impl NeuralCellular {
                 let new_intensity = (self.buf[y][x].intensity * 200.).round() as u8;
 
                 match self.buf[y][x].color {
-                    0 => rect_color = context.bg_color,
-                    1 | 10 => rect_color = Color::RGBA(246, 122, 17, new_intensity),
-                    2 | 20 => rect_color = Color::RGBA(208, 37, 37, new_intensity),
-                    3 | 30 => rect_color = Color::RGBA(35, 119, 181, new_intensity),
-                    _ => rect_color = Color::RGBA(20, 20, 20, new_intensity),
+                    // 0 => rect_color = Color::from(context.bg_color),
+                    1 | 10 => rect_color = Color::new_rgba(246, 122, 17, new_intensity),
+                    2 | 20 => rect_color = Color::new_rgba(208, 37, 37, new_intensity),
+                    3 | 30 => rect_color = Color::new_rgba(35, 119, 181, new_intensity),
+                    _ => rect_color = Color::new_rgba(20, 20, 20, new_intensity),
                 }
 
                 if self.buf[y][x].color != 0 {
-                    context.canvas.set_draw_color(rect_color);
-                    context.canvas.fill_rect(Rect::new(
-                        (x as i32) * context.block_size,
-                        (y as i32) * context.block_size,
-                        context.block_size as u32,
-                        context.block_size as u32,
-                    ))?;
+                    let mut rect = RectangleShape::new_init(&Vector2f::new(
+                        context.block_size as f32,
+                        context.block_size as f32,
+                    ))
+                    .unwrap();
+                    rect.set_position(&Vector2f {
+                        x: ((x as i32) * context.block_size) as f32,
+                        y: ((y as i32) * context.block_size) as f32,
+                    });
+                    rect.set_fill_color(&rect_color);
+
+                    let mut rs = RenderStates::default();
+                    rs.blend_mode = BlendMode::blend_alpha();
+
+                    canvas.draw_rectangle_shape(&rect, &mut rs);
                 }
             }
         }

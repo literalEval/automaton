@@ -7,26 +7,74 @@ name = "automaton"
 version = "0.1.0"
 dependencies = [
  "rand",
- "sdl2",
+ "sfml",
 ]
 
 [[package]]
 name = "bitflags"
-version = "1.3.2"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
-
-[[package]]
-name = "c_vec"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdd7a427adc0135366d99db65b36dae9237130997e560ed61118041fb72be6e8"
+checksum = "4f67931368edf3a9a51d29886d245f1c3db2f1ef0dcc9e35ff70341b78c10d23"
 
 [[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "csfml-audio-sys"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f03e143b2470cbe317a57c17661f315f9565e4187ea85335ad7839dc57aa6bd0"
+dependencies = [
+ "csfml-system-sys",
+ "libc",
+ "sfml-types",
+]
+
+[[package]]
+name = "csfml-graphics-sys"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72e888a8cc664674eb47271d1042fc2df09a03fd7eb1585d691f0503dce19c55"
+dependencies = [
+ "csfml-system-sys",
+ "csfml-window-sys",
+ "libc",
+ "sfml-types",
+]
+
+[[package]]
+name = "csfml-network-sys"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd11432924734b45b6478ee384ad84591274a9f277997771ca2cd57ebf03940e"
+dependencies = [
+ "csfml-system-sys",
+ "libc",
+ "sfml-types",
+]
+
+[[package]]
+name = "csfml-system-sys"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f613309f92bca2549e066286580d0ab69809afba4675c3fc0c7943409c77206d"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "csfml-window-sys"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f74f961b69749ca7e62ad66b7959ab62f63847826d8cb3a068250fcbd1c3fbcf"
+dependencies = [
+ "csfml-system-sys",
+ "libc",
+ "sfml-types",
+]
 
 [[package]]
 name = "getrandom"
@@ -38,12 +86,6 @@ dependencies = [
  "libc",
  "wasi",
 ]
-
-[[package]]
-name = "lazy_static"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
@@ -88,34 +130,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdl2"
-version = "0.36.0"
+name = "sfml"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8356b2697d1ead5a34f40bcc3c5d3620205fe0c7be0a14656223bfeec0258891"
+checksum = "796ac61674669d1cbc9a444af283aa622c8bf018692a9ec4dc39ff9445615469"
 dependencies = [
  "bitflags",
- "c_vec",
- "lazy_static",
+ "csfml-audio-sys",
+ "csfml-graphics-sys",
+ "csfml-network-sys",
+ "csfml-system-sys",
+ "csfml-window-sys",
  "libc",
- "sdl2-sys",
+ "sfml-types",
 ]
 
 [[package]]
-name = "sdl2-sys"
-version = "0.36.0"
+name = "sfml-types"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26bcacfdd45d539fb5785049feb0038a63931aa896c7763a2a12e125ec58bd29"
-dependencies = [
- "cfg-if",
- "libc",
- "version-compare",
-]
-
-[[package]]
-name = "version-compare"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "579a42fc0b8e0c63b76519a339be31bed574929511fa53c1a3acae26eb258f29"
+checksum = "d81c513af1beb0d4105ac8269dc0f8405d0e1bbf0d589af1b882fb515d7c5758"
 
 [[package]]
 name = "wasi"

@@ -4,8 +4,9 @@ mod utils;
 use models::forest::Forest;
 use models::neural_cellular::NeuralCellular;
 use models::rock_paper_scissor::RockPaperScissor;
-use sdl2::gfx::framerate::FPSManager;
-use sdl2::{pixels::Color, rect::Rect, render::Canvas, video::Window};
+
+use sfml::graphics::{Color, RenderTarget, RenderTexture, RenderWindow, Sprite};
+use sfml::window::{ContextSettings, WindowStyle};
 use utils::*;
 
 struct GlobalContext<'a> {
@@ -14,12 +15,12 @@ struct GlobalContext<'a> {
     grid_width: i32,
     grid_height: i32,
     block_size: i32,
-    screen_area: Rect,
-    bg_color: Color,
+    bg_color: &'a Color,
     running: bool,
     is_playing: bool,
     draw_grid_lines: bool,
-    canvas: &'a mut Canvas<Window>,
+    // canvas: &'a mut Canvas<Window>,
+    // canvas: &'a mut RenderTexture,
 }
 
 impl<'a> GlobalContext<'a> {
@@ -27,8 +28,8 @@ impl<'a> GlobalContext<'a> {
         scr_w: u32,
         scr_h: u32,
         block_size: i32,
-        bg_color: Color,
-        canvas: &'a mut Canvas<Window>,
+        bg_color: &'a Color,
+        // canvas: &'a mut RenderTexture,
     ) -> Self {
         GlobalContext {
             scr_width: scr_w,
@@ -36,12 +37,11 @@ impl<'a> GlobalContext<'a> {
             block_size,
             grid_width: scr_w as i32 / block_size,
             grid_height: scr_h as i32 / block_size,
-            screen_area: Rect::new(0, 0, scr_w, scr_h),
             bg_color,
             running: true,
             is_playing: true,
             draw_grid_lines: false,
-            canvas,
+            // canvas,
         }
     }
 }
@@ -49,28 +49,28 @@ impl<'a> GlobalContext<'a> {
 fn main() -> Result<(), String> {
     let scr_width = 1080;
     let scr_height = 720;
-    let bg_color = Color::RGBA(197, 214, 220, 0);
-    // let bg_color = Color::RGBA(0, 0, 0, 0);
+    let bg_color = Color::new_rgba(255, 255, 255, 255);
 
-    let sdl_context = sdl2::init()?;
-    let video_subsystem = sdl_context.video()?;
-    let window = video_subsystem
-        .window("Automaton", scr_width, scr_height)
-        .position_centered()
-        .build()
-        .expect("Failed to build window");
+    let mut sfml_win = RenderWindow::new(
+        sfml::window::VideoMode {
+            width: 1080,
+            height: 720,
+            bits_per_pixel: 100,
+        },
+        "Automaton",
+        WindowStyle::default(),
+        &ContextSettings::default(),
+    )
+    .unwrap();
 
-    let mut canvas = window
-        .into_canvas()
-        .build()
-        .expect("Failed to build context");
+    let mut canvas = RenderTexture::new(1080, 720, false).unwrap();
+    canvas.set_smooth(true);
+    canvas.clear(&bg_color);
+    canvas.display();
 
-    let mut fps = FPSManager::new();
+    sfml_win.get_settings().0.antialiasing_level = 10;
 
-    let mut global_c = GlobalContext::new(scr_width, scr_height, 6, bg_color, &mut canvas);
-    global_c.canvas.set_blend_mode(sdl2::render::BlendMode::Add);
-
-    let mut event_queue = sdl_context.event_pump().unwrap();
+    let mut global_c = GlobalContext::new(scr_width, scr_height, 6, &bg_color);
 
     let mut rps = RockPaperScissor::new();
     let mut nca = NeuralCellular::new();
@@ -83,38 +83,37 @@ fn main() -> Result<(), String> {
     let mut frame = 0;
 
     while global_c.running {
-        // global_c.canvas.set_draw_color(global_c.bg_color);
-        // global_c.canvas.clear();
-
-        for event in event_queue.poll_iter() {
-            // rps.handle_event(&event, &mut global_c);
-            // nca.handle_event(&event, &mut global_c);
-            forest.handle_event(&event, &mut global_c);
+        for ev in sfml_win.events() {
+            forest.handle_event(&ev, &mut global_c);
+            // nca.handle_event(&ev, &mut global_c);
+            // rps.handle_event(&ev, &mut global_c);
         }
 
-        if global_c.is_playing {
-            // rps.draw(&mut global_c)?;
-            // nca.mutate(&mut global_c);
-            // nca.activate();
-
-            if frame == 40 {
-                forest.mutate(&global_c);
-            }
-
-            if global_c.draw_grid_lines {
-                render::draw_grid(&mut global_c)?;
-            }
+        if frame == 20 {
+            forest.mutate(&global_c);
         }
 
-        // nca.draw(&mut global_c)?;
-        forest.draw(&mut global_c)?;
+        forest.draw(&mut global_c, &mut canvas)?;
 
-        // if frame == 1 {
-            global_c.canvas.present();
-        // }
+        // canvas.clear(&bg_color);
+        // nca.mutate(&mut global_c);
+        // nca.activate();
+        // nca.draw(&mut global_c, &mut canvas)?;
 
-        frame = (frame + 1) % 41;
+        // rps.draw(&mut global_c, &mut canvas)?;
+
+        sfml_win.clear(&Color::white());
+        sfml_win.draw(&Sprite::new_with_texture(&canvas.get_texture().unwrap()).unwrap());
+
+        if global_c.draw_grid_lines {
+            render::draw_grid(&mut global_c, &mut canvas)?;
+        }
+
+        sfml_win.display();
+
+        frame = (frame + 1) % 21;
     }
 
+    sfml_win.close();
     Ok(())
 }
