@@ -1,10 +1,15 @@
-use rand::Rng;
-use sfml::{
-    graphics::{CircleShape, Color, RenderTarget, RenderTexture, Shape, Texture, Transformable},
-    window::{event::Event, Key, MouseButton},
-};
+use std::f32::consts::PI;
 
-use crate::GlobalContext;
+use nannou::{
+    color::{self, hsl, Rgb, Rgba},
+    event::MouseButton,
+    geom::Point2,
+    state::mouse::ButtonMap,
+    Draw, Event, Frame,
+};
+use rand::Rng;
+
+use crate::BuildContext;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Root {
@@ -36,63 +41,43 @@ impl Forest {
         }
     }
 
-    pub fn setup(&mut self, _context: &GlobalContext) {}
-
-    pub fn handle_event(&mut self, event: &Event, context: &mut GlobalContext) {
+    fn create_root(pos: Point2) -> Root {
         let mut rand_gen = rand::thread_rng();
 
-        match event {
-            Event::Closed { .. } => context.running = false,
-            Event::MouseMoved { x, y } => {
-                if MouseButton::Left.is_pressed() {
-                    for _ in 0..1 {
-                        self.buf.push(Root {
-                            x: *x as f32,
-                            y: *y as f32,
-                            dx: rand_gen.gen_range(-2.0..=2.0),
-                            dy: rand_gen.gen_range(-2.0..=2.0),
-                            size: 0.1,
-                            ds: rand_gen.gen_range(0.1..0.2),
-                            angle_x: 0.,
-                            angle_y: 0.,
-                            dax: rand_gen.gen_range(0.1..=0.9),
-                            day: rand_gen.gen_range(0.1..=0.9),
-                            max_size: rand_gen.gen_range(3.0..=8.0),
-                        });
-                    }
-                }
-            }
-            Event::MouseButtonPressed { button, x, y } => {
-                if button == &MouseButton::Left {
-                    for _ in 0..9 {
-                        self.buf.push(Root {
-                            x: *x as f32,
-                            y: *y as f32,
-                            dx: rand_gen.gen_range(-2.0..=2.0),
-                            dy: rand_gen.gen_range(-2.0..=2.0),
-                            size: 0.1,
-                            ds: rand_gen.gen_range(0.1..0.2),
-                            angle_x: 0.,
-                            angle_y: 0.,
-                            dax: rand_gen.gen_range(0.1..=0.9),
-                            day: rand_gen.gen_range(0.1..=0.9),
-                            max_size: rand_gen.gen_range(8.0..=9.0),
-                        });
-                    }
-                }
-            }
-            Event::KeyPressed { code, .. } => match code {
-                Key::R => self.cur_draw_color = 1,
-                Key::G => self.cur_draw_color = 2,
-                Key::B => self.cur_draw_color = 3,
-                Key::P => context.is_playing = !context.is_playing,
-                _ => self.cur_draw_color = 0,
-            },
-            _ => {}
+        Root {
+            x: pos.x,
+            y: pos.y,
+            dx: rand_gen.gen_range(-2.0..=2.0),
+            dy: rand_gen.gen_range(-2.0..=2.0),
+            size: 0.1,
+            ds: rand_gen.gen_range(0.1..0.2),
+            angle_x: 0.,
+            angle_y: 0.,
+            dax: rand_gen.gen_range(0.1..=0.9),
+            day: rand_gen.gen_range(0.1..=0.9),
+            max_size: rand_gen.gen_range(3.0..=8.0),
         }
     }
 
-    pub fn mutate(&mut self, context: &GlobalContext) {
+    pub fn setup(&mut self, _context: &BuildContext) {}
+
+    pub fn handle_mouse_pressed(&mut self, button: MouseButton, pos: Point2) {
+        if button == MouseButton::Left {
+            for _ in 0..9 {
+                self.buf.push(Forest::create_root(pos));
+            }
+        }
+    }
+
+    pub fn handle_mouse_moved(&mut self, button: &ButtonMap, pos: Point2) {
+        if button.left().is_down() {
+            for _ in 0..=1 {
+                self.buf.push(Forest::create_root(pos));
+            }
+        }
+    }
+
+    pub fn mutate(&mut self) {
         let mut old_buf = vec![];
 
         for cur_buf in &mut self.buf {
@@ -109,28 +94,33 @@ impl Forest {
         self.buf = old_buf;
     }
 
-    pub fn draw(
-        &mut self,
-        _context: &mut GlobalContext,
-        canvas: &mut RenderTexture,
-    ) -> Result<(), String> {
+    pub fn draw(&self, draw: &mut Draw) {
         for cur_buf in &self.buf {
-            let mut circle = CircleShape::new().unwrap();
-            circle.set_radius(cur_buf.size);
-            circle.set_position2f(cur_buf.x, cur_buf.y);
-            circle.set_fill_color(&Color::new_rgb(10, (17. * cur_buf.size) as u8, 10));
-            circle.set_outline_thickness(1.2);
-            circle.set_outline_color(&Color::black());
-
-            canvas.draw(&circle);
+            draw.ellipse()
+                .radius(cur_buf.size)
+                .x_y(cur_buf.x, cur_buf.y)
+                // Lightness
+                //
+                // .hsl(
+                //     0.25,
+                //     (cur_buf.size / cur_buf.max_size) / 1.5,
+                //     1. - (cur_buf.size / cur_buf.max_size),
+                // )
+                //
+                .hsl(
+                    (cur_buf.size / cur_buf.max_size).cos(),
+                    (cur_buf.size / cur_buf.max_size).sin(),
+                    (cur_buf.size / cur_buf.max_size) / 2.,
+                )
+                .stroke(Rgba::new(
+                    0.,
+                    0.,
+                    0.,
+                    (cur_buf.size / cur_buf.max_size) * 0.5,
+                ))
+                .stroke_weight((cur_buf.size / cur_buf.max_size) * 0.5);
         }
-
-        Ok(())
     }
 
     pub fn _activate(&mut self) {}
-
-    fn _in_bounds(y: &i32, x: &i32, grid_h: &i32, grid_w: &i32) -> bool {
-        y >= &0 && x >= &0 && y < grid_h && x < grid_w
-    }
 }

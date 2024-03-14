@@ -1,18 +1,10 @@
-use rand::{rngs::ThreadRng, Rng};
-use sfml::{
-    graphics::{
-        BlendMode, Color, RectangleShape, RenderStates, RenderTarget, RenderTexture, Shape,
-        Transformable,
-    },
-    system::Vector2f,
-    window::{
-        event::Event::{self, MouseLeft},
-        Key, MouseButton,
-    },
+use nannou::{
+    color::{self, hsl, Rgb, Rgba}, draw, event::{Key, MouseButton}, geom::Point2, state::{mouse::ButtonMap, Keys, Window}, App, Draw
 };
+use rand::{rngs::ThreadRng, Rng};
 use std::cmp::min;
 
-use crate::GlobalContext;
+use crate::{BuildContext, WindowInfo};
 
 #[derive(Clone, Copy)]
 pub(crate) struct BufData {
@@ -28,69 +20,72 @@ pub(crate) struct RockPaperScissor {
 }
 
 impl RockPaperScissor {
-    pub fn new() -> Self {
+    pub fn new(window_info: &WindowInfo) -> Self {
         Self {
             cur_draw_color: 1,
             max_intensity: 6,
             rand_gen: rand::thread_rng(),
-            buf: vec![vec![BufData {
-                color: 0,
-                intensity: 0,
-            }]],
+            buf: vec![
+                vec![
+                    BufData {
+                        color: 0,
+                        intensity: 6
+                    };
+                    window_info.grid_width as usize
+                ];
+                window_info.grid_height as usize
+            ],
         }
     }
 
-    pub fn setup(&mut self, context: &GlobalContext) {
-        self.rand_gen = rand::thread_rng();
-        self.buf = vec![
-            vec![
-                BufData {
-                    color: 0,
-                    intensity: self.max_intensity
-                };
-                context.grid_width as usize
-            ];
-            context.grid_height as usize
-        ];
-    }
-
-    pub fn handle_event(&mut self, event: &Event, context: &mut GlobalContext) {
-        match event {
-            Event::Closed { .. } => context.running = false,
-            Event::MouseMoved { x, y } | Event::MouseButtonPressed { x, y, .. } => {
-                if MouseButton::Left.is_pressed() {
-                    self.buf[(y / context.block_size) as usize]
-                        [(x / context.block_size) as usize]
-                        .color = self.cur_draw_color;
-                }
-            }
-            Event::KeyPressed { code, .. } => match code {
-                Key::R => self.cur_draw_color = 1,
-                Key::G => self.cur_draw_color = 2,
-                Key::B => self.cur_draw_color = 3,
-                _ => self.cur_draw_color = 0,
-            },
-            _ => {}
-        }
-    }
-
-    pub fn draw(
+    pub fn handle_mouse_pressed(
         &mut self,
-        context: &mut GlobalContext,
-        canvas: &mut RenderTexture,
-    ) -> Result<(), String> {
+        window_info: &WindowInfo,
+        button: MouseButton,
+        pos: Point2,
+    ) {
+        if button == MouseButton::Left {
+            self.buf[((pos.y + (window_info.height as f32 / -2.)).abs() as i32 / window_info.block_size)
+                as usize][((pos.x + (window_info.width as f32 / 2.)) as i32
+                / window_info.block_size) as usize]
+                .color = self.cur_draw_color;
+        }
+    }
+
+    pub fn handle_mouse_moved(
+        &mut self,
+        window_info: &WindowInfo,
+        button: &ButtonMap,
+        pos: Point2,
+    ) {
+        if button.left().is_down() {
+            self.buf[((pos.y + (window_info.height as f32 / -2.)).abs() as i32 / window_info.block_size)
+                as usize][((pos.x + (window_info.width as f32 / 2.)) as i32
+                / window_info.block_size) as usize]
+                .color = self.cur_draw_color;
+        }
+    }
+
+    pub fn handle_key_pressed(&mut self, key: &Key) {
+        match key {
+            Key::R => self.cur_draw_color = 1,
+            Key::G => self.cur_draw_color = 2,
+            Key::B => self.cur_draw_color = 3,
+            _ => self.cur_draw_color = 0,
+        }
+    }
+
+    pub fn mutate(&mut self, window_info: &WindowInfo) {
         for y in 0..self.buf.len() {
             for x in 0..self.buf[0].len() {
                 let neighbour_y = self.rand_gen.gen_range(-1..=1) + (y as i32);
                 let neighbour_x = self.rand_gen.gen_range(-1..=1) + (x as i32);
 
-                // println!("y: {:?}, x: {:?}", neighbour_y - (y as i32), neighbour_x - (x as i32));
-
                 if Self::in_bounds(
                     &neighbour_y,
                     &neighbour_x,
-                    &context.grid_height,
-                    &context.grid_width,
+                    &window_info.grid_height,
+                    &window_info.grid_width,
                 ) {
                     let mut neighbour_pixel = self.buf[neighbour_y as usize][neighbour_x as usize];
 
@@ -135,42 +130,35 @@ impl RockPaperScissor {
                 }
             }
         }
+    }
 
+    pub fn draw(&self, window_info: &WindowInfo, draw: &Draw, app: &App) {
         for y in 0..self.buf.len() {
             for x in 0..self.buf[0].len() {
-                let rect_color: Color;
+                let rect_color: Rgba<u8>;
                 let new_intensity =
-                    (200 + (50 - (50 * self.buf[y][x].intensity) / self.max_intensity)) as u8;
+                    (150 + (0 + (100 * self.buf[y][x].intensity) / self.max_intensity)) as u8;
 
                 match self.buf[y][x].color {
-                    // 0 => rect_color = context.bg_color,
-                    1 | 10 => rect_color = Color::new_rgba(246, 122, 17, new_intensity),
-                    2 | 20 => rect_color = Color::new_rgba(208, 37, 37, new_intensity),
-                    3 | 30 => rect_color = Color::new_rgba(35, 119, 181, new_intensity),
-                    _ => rect_color = Color::new_rgba(20, 20, 20, new_intensity),
+                    0 => rect_color = window_info.bg_color,
+                    1 | 10 => rect_color = Rgba::new(246, 122, 17, new_intensity),
+                    2 | 20 => rect_color = Rgba::new(208, 37, 37, new_intensity),
+                    3 | 30 => rect_color = Rgba::new(35, 119, 181, new_intensity),
+                    _ => rect_color = Rgba::new(20, 20, 20, new_intensity),
                 }
 
                 if self.buf[y][x].color != 0 {
-                    let mut rect = RectangleShape::new_init(&Vector2f::new(
-                        context.block_size as f32,
-                        context.block_size as f32,
-                    ))
-                    .unwrap();
-                    rect.set_position(&Vector2f {
-                        x: ((x as i32) * context.block_size) as f32,
-                        y: ((y as i32) * context.block_size) as f32,
-                    });
-                    rect.set_fill_color(&rect_color);
-
-                    let mut rs = RenderStates::default();
-                    rs.blend_mode = BlendMode::blend_alpha();
-
-                    canvas.draw_rectangle_shape(&rect, &mut rs);
+                    draw.rect()
+                        .color(rect_color)
+                        .x_y(
+                            ((x as i32) * window_info.block_size - window_info.width / 2) as f32,
+                            (-(y as i32) * window_info.block_size + window_info.height / 2) as f32,
+                        )
+                        .width(window_info.block_size as f32)
+                        .height(window_info.block_size as f32);
                 }
             }
         }
-
-        Ok(())
     }
 
     fn in_bounds(y: &i32, x: &i32, grid_h: &i32, grid_w: &i32) -> bool {

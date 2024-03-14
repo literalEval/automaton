@@ -5,115 +5,140 @@ use models::forest::Forest;
 use models::neural_cellular::NeuralCellular;
 use models::rock_paper_scissor::RockPaperScissor;
 
-use sfml::graphics::{Color, RenderTarget, RenderTexture, RenderWindow, Sprite};
-use sfml::window::{ContextSettings, WindowStyle};
+use nannou::color::Rgba;
+use nannou::prelude::*;
+use nannou::wgpu::BlendComponent;
 use utils::*;
 
-struct GlobalContext<'a> {
-    scr_width: u32,
-    scr_height: u32,
+#[derive(Clone)]
+struct WindowInfo {
+    width: i32,
+    height: i32,
     grid_width: i32,
     grid_height: i32,
     block_size: i32,
-    bg_color: &'a Color,
-    running: bool,
+    bg_color: Rgba<u8>,
     is_playing: bool,
+}
+
+enum Model {
+    FOREST(Forest),
+    NCA(NeuralCellular),
+    RPS(RockPaperScissor),
+}
+
+struct BuildContext {
+    window_info: WindowInfo,
     draw_grid_lines: bool,
-    // canvas: &'a mut Canvas<Window>,
-    // canvas: &'a mut RenderTexture,
+    model: Model,
+    window_id: WindowId,
 }
 
-impl<'a> GlobalContext<'a> {
-    fn new(
-        scr_w: u32,
-        scr_h: u32,
-        block_size: i32,
-        bg_color: &'a Color,
-        // canvas: &'a mut RenderTexture,
-    ) -> Self {
-        GlobalContext {
-            scr_width: scr_w,
-            scr_height: scr_h,
-            block_size,
-            grid_width: scr_w as i32 / block_size,
-            grid_height: scr_h as i32 / block_size,
-            bg_color,
-            running: true,
-            is_playing: true,
-            draw_grid_lines: false,
-            // canvas,
-        }
+fn build_context(app: &App) -> BuildContext {
+    let window_id = app
+        .new_window()
+        .size(640, 480)
+        // .clear_color(Rgb::new(1., 1., 1.))
+        .mouse_pressed(handle_mouse_pressed)
+        .mouse_moved(handle_mouse_moved)
+        .key_pressed(handle_key_pressed)
+        .view(view)
+        .build()
+        .unwrap();
+
+    let window_info = WindowInfo {
+        width: 640,
+        height: 480,
+        grid_width: 640 / 3,
+        grid_height: 480 / 3,
+        block_size: 3,
+        bg_color: Rgba::new(255, 255, 255, 255),
+        is_playing: true,
+    };
+
+    BuildContext {
+        window_info: window_info.clone(),
+        draw_grid_lines: false,
+        // model: Model::forest(Forest::new()),
+        // model: Model::rps(RockPaperScissor::new(&window_info)),
+        model: Model::NCA(NeuralCellular::new(&window_info)),
+        window_id,
     }
 }
 
-fn main() -> Result<(), String> {
-    let scr_width = 1080;
-    let scr_height = 720;
-    let bg_color = Color::new_rgba(255, 255, 255, 255);
-
-    let mut sfml_win = RenderWindow::new(
-        sfml::window::VideoMode {
-            width: 1080,
-            height: 720,
-            bits_per_pixel: 100,
-        },
-        "Automaton",
-        WindowStyle::default(),
-        &ContextSettings::default(),
-    )
-    .unwrap();
-
-    let mut canvas = RenderTexture::new(1080, 720, false).unwrap();
-    canvas.set_smooth(true);
-    canvas.clear(&bg_color);
-    canvas.display();
-
-    sfml_win.get_settings().0.antialiasing_level = 10;
-
-    let mut global_c = GlobalContext::new(scr_width, scr_height, 6, &bg_color);
-
-    let mut rps = RockPaperScissor::new();
-    let mut nca = NeuralCellular::new();
-    let mut forest = Forest::new();
-
-    rps.setup(&global_c);
-    nca.setup(&global_c);
-    forest.setup(&global_c);
-
-    let mut frame = 0;
-
-    while global_c.running {
-        for ev in sfml_win.events() {
-            forest.handle_event(&ev, &mut global_c);
-            // nca.handle_event(&ev, &mut global_c);
-            // rps.handle_event(&ev, &mut global_c);
+fn handle_mouse_pressed(app: &App, context: &mut BuildContext, button: MouseButton) {
+    match &mut context.model {
+        Model::FOREST(ref mut f) => f.handle_mouse_pressed(button, app.mouse.position()),
+        Model::RPS(ref mut r) => {
+            r.handle_mouse_pressed(&context.window_info, button, app.mouse.position())
         }
-
-        if frame == 20 {
-            forest.mutate(&global_c);
+        Model::NCA(ref mut n) => {
+            n.handle_mouse_pressed(&context.window_info, button, app.mouse.position())
         }
+        _ => {}
+    }
+}
 
-        forest.draw(&mut global_c, &mut canvas)?;
-
-        // canvas.clear(&bg_color);
-        // nca.mutate(&mut global_c);
-        // nca.activate();
-        // nca.draw(&mut global_c, &mut canvas)?;
-
-        // rps.draw(&mut global_c, &mut canvas)?;
-
-        sfml_win.clear(&Color::white());
-        sfml_win.draw(&Sprite::new_with_texture(&canvas.get_texture().unwrap()).unwrap());
-
-        if global_c.draw_grid_lines {
-            render::draw_grid(&mut global_c, &mut canvas)?;
+fn handle_mouse_moved(app: &App, context: &mut BuildContext, pos: Point2) {
+    match &mut context.model {
+        Model::FOREST(ref mut f) => f.handle_mouse_moved(&app.mouse.buttons, pos),
+        Model::RPS(ref mut r) => {
+            r.handle_mouse_moved(&context.window_info, &app.mouse.buttons, pos)
         }
+        Model::NCA(ref mut n) => {
+            n.handle_mouse_moved(&context.window_info, &app.mouse.buttons, pos)
+        }
+        _ => {}
+    }
+}
 
-        sfml_win.display();
+fn handle_key_pressed(app: &App, context: &mut BuildContext, key: Key) {
+    match &mut context.model {
+        Model::RPS(ref mut r) => r.handle_key_pressed(&key),
+        Model::NCA(ref mut n) => n.handle_key_pressed(&mut context.window_info, &key),
+        _ => {}
+    }
+}
 
-        frame = (frame + 1) % 21;
+fn update(_app: &App, context: &mut BuildContext, _update: Update) {
+    if !context.window_info.is_playing {
+        return;
     }
 
-    sfml_win.close();
-    Ok(())
+    match &mut context.model {
+        Model::FOREST(ref mut f) => f.mutate(),
+        Model::RPS(ref mut r) => r.mutate(&context.window_info),
+        Model::NCA(ref mut n) => {
+            n.mutate(&context.window_info);
+            n.activate();
+        }
+        _ => {}
+    }
+}
+
+fn view(app: &App, context: &BuildContext, frame: Frame) {
+    let mut draw = app.draw().blend(BlendComponent::OVER);
+
+    match &context.model {
+        Model::FOREST(ref f) => f.draw(&mut draw),
+        Model::RPS(ref r) => r.draw(&context.window_info, &mut draw, &app),
+        Model::NCA(ref n) => {
+            frame.clear(context.window_info.bg_color);
+            n.draw(&context.window_info, &mut draw, &app)
+        }
+        _ => {}
+    }
+
+    if context.draw_grid_lines {
+        render::draw_grid(&mut draw, &context);
+    }
+
+    match draw.to_frame(&app, &frame) {
+        Result::Ok(_) => {}
+        Result::Err(e) => println!("{:?}", e),
+    }
+}
+
+fn main() {
+    nannou::app(build_context).update(update).view(view).run();
 }

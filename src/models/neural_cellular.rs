@@ -1,14 +1,13 @@
-use rand::Rng;
-use sfml::{
-    graphics::{
-        BlendMode, Color, RectangleShape, RenderStates, RenderTarget, RenderTexture, Shape,
-        Transformable,
-    },
-    system::{Vector2f, Vector2i},
-    window::{event::Event, Key, MouseButton},
+use nannou::{
+    color::Rgba,
+    event::{Key, MouseButton},
+    geom::Point2,
+    state::mouse::ButtonMap,
+    App, Draw,
 };
+use rand::Rng;
 
-use crate::GlobalContext;
+use crate::{BuildContext, WindowInfo};
 
 const DELTA: [(i32, i32); 9] = [
     (-1, -1),
@@ -36,13 +35,29 @@ pub(crate) struct NeuralCellular {
 }
 
 impl NeuralCellular {
-    pub fn new() -> Self {
+    pub fn new(window_info: &WindowInfo) -> Self {
+        let mut rand_gen = rand::thread_rng();
+
+        let mut buf = vec![
+            vec![
+                BufData {
+                    color: 2,
+                    intensity: 0.,
+                };
+                window_info.grid_width as usize
+            ];
+            window_info.grid_height as usize
+        ];
+
+        for y in 0..buf.len() {
+            for x in 0..buf[0].len() {
+                buf[y][x].intensity = rand_gen.gen_range(-1.0..=1.0);
+            }
+        }
+
         Self {
             cur_draw_color: 2,
-            buf: vec![vec![BufData {
-                color: 0,
-                intensity: 0.,
-            }]],
+            buf,
             wrap_on_edge: true,
             // filter: [
             //     [0.80, -0.85, 0.80],
@@ -65,7 +80,7 @@ impl NeuralCellular {
         }
     }
 
-    pub fn setup(&mut self, context: &GlobalContext) {
+    pub fn setup(&mut self, window_info: &WindowInfo) {
         let mut rand_gen = rand::thread_rng();
         self.buf = vec![
             vec![
@@ -73,9 +88,9 @@ impl NeuralCellular {
                     color: self.cur_draw_color,
                     intensity: 0.,
                 };
-                context.grid_width as usize
+                window_info.grid_width as usize
             ];
-            context.grid_height as usize
+            window_info.grid_height as usize
         ];
 
         for y in 0..self.buf.len() {
@@ -85,41 +100,55 @@ impl NeuralCellular {
         }
     }
 
-    pub fn handle_event(&mut self, event: &Event, context: &mut GlobalContext) {
-        match event {
-            Event::Closed { .. } => context.running = false,
-            Event::MouseMoved { x, y, .. } => {
-                // println!("{:?}", mousestate.left());
-                if MouseButton::Left.is_pressed() {
-                    self.buf[(y / context.block_size) as usize]
-                        [(x / context.block_size) as usize] = BufData {
-                        color: self.cur_draw_color,
-                        intensity: 1.,
-                    };
-                }
+    pub fn handle_mouse_pressed(
+        &mut self,
+        window_info: &WindowInfo,
+        button: MouseButton,
+        pos: Point2,
+    ) {
+        if button == MouseButton::Left {
+            self.buf[((pos.y + (window_info.height as f32 / -2.)).abs() as i32
+                / window_info.block_size) as usize][((pos.x
+                + (window_info.width as f32 / 2.))
+                as i32
+                / window_info.block_size)
+                as usize] = BufData {
+                color: self.cur_draw_color,
+                intensity: 1.,
             }
-            Event::MouseButtonPressed { button, x, y } => {
-                // println!("{:?}", self.buf);
-                if button == &MouseButton::Left {
-                    self.buf[(y / context.block_size) as usize]
-                        [(x / context.block_size) as usize] = BufData {
-                        color: self.cur_draw_color,
-                        intensity: 1.,
-                    };
-                }
-            }
-            Event::KeyPressed { code, .. } => match code {
-                Key::R => self.cur_draw_color = 1,
-                Key::G => self.cur_draw_color = 2,
-                Key::B => self.cur_draw_color = 3,
-                Key::P => context.is_playing = !context.is_playing,
-                _ => self.cur_draw_color = 0,
-            },
-            _ => {}
         }
     }
 
-    pub fn mutate(&mut self, context: &mut GlobalContext) {
+    pub fn handle_mouse_moved(
+        &mut self,
+        window_info: &WindowInfo,
+        button: &ButtonMap,
+        pos: Point2,
+    ) {
+        if button.left().is_down() {
+            self.buf[((pos.y + (window_info.height as f32 / -2.)).abs() as i32
+                / window_info.block_size) as usize][((pos.x
+                + (window_info.width as f32 / 2.))
+                as i32
+                / window_info.block_size)
+                as usize] = BufData {
+                color: self.cur_draw_color,
+                intensity: 1.,
+            }
+        }
+    }
+
+    pub fn handle_key_pressed(&mut self, window_info: &mut WindowInfo, key: &Key) {
+        match key {
+            Key::R => self.cur_draw_color = 1,
+            Key::G => self.cur_draw_color = 2,
+            Key::B => self.cur_draw_color = 3,
+            Key::P => window_info.is_playing = !window_info.is_playing,
+            _ => self.cur_draw_color = 0,
+        }
+    }
+
+    pub fn mutate(&mut self, window_info: &WindowInfo) {
         let mut old_buf: Vec<Vec<BufData>> = self.buf.clone();
 
         for y in 0..self.buf.len() {
@@ -130,10 +159,10 @@ impl NeuralCellular {
                     let (neighbour_y, neighbour_x): (i32, i32);
 
                     if self.wrap_on_edge {
-                        neighbour_y =
-                            ((y as i32 + delta.0) + context.grid_height) % context.grid_height;
-                        neighbour_x =
-                            ((x as i32 + delta.1) + context.grid_width) % context.grid_width;
+                        neighbour_y = ((y as i32 + delta.0) + window_info.grid_height)
+                            % window_info.grid_height;
+                        neighbour_x = ((x as i32 + delta.1) + window_info.grid_width)
+                            % window_info.grid_width;
                     } else {
                         neighbour_y = y as i32 + delta.0;
                         neighbour_x = x as i32 + delta.1;
@@ -141,8 +170,8 @@ impl NeuralCellular {
                         if !Self::in_bounds(
                             &neighbour_y,
                             &neighbour_x,
-                            &context.grid_height,
-                            &context.grid_width,
+                            &window_info.grid_height,
+                            &window_info.grid_width,
                         ) {
                             continue;
                         }
@@ -159,46 +188,32 @@ impl NeuralCellular {
         self.buf = old_buf;
     }
 
-    pub fn draw(
-        &mut self,
-        context: &mut GlobalContext,
-        canvas: &mut RenderTexture,
-    ) -> Result<(), String> {
+    pub fn draw(&self, window_info: &WindowInfo, draw: &Draw, app: &App) {
         for y in 0..self.buf.len() {
             for x in 0..self.buf[0].len() {
-                let rect_color: Color;
-
+                let rect_color: Rgba<u8>;
                 let new_intensity = (self.buf[y][x].intensity * 200.).round() as u8;
 
                 match self.buf[y][x].color {
-                    // 0 => rect_color = Color::from(context.bg_color),
-                    1 | 10 => rect_color = Color::new_rgba(246, 122, 17, new_intensity),
-                    2 | 20 => rect_color = Color::new_rgba(208, 37, 37, new_intensity),
-                    3 | 30 => rect_color = Color::new_rgba(35, 119, 181, new_intensity),
-                    _ => rect_color = Color::new_rgba(20, 20, 20, new_intensity),
+                    0 => rect_color = window_info.bg_color,
+                    1 | 10 => rect_color = Rgba::new(246, 122, 17, new_intensity),
+                    2 | 20 => rect_color = Rgba::new(208, 37, 37, new_intensity),
+                    3 | 30 => rect_color = Rgba::new(35, 119, 181, new_intensity),
+                    _ => rect_color = Rgba::new(20, 20, 20, new_intensity),
                 }
 
                 if self.buf[y][x].color != 0 {
-                    let mut rect = RectangleShape::new_init(&Vector2f::new(
-                        context.block_size as f32,
-                        context.block_size as f32,
-                    ))
-                    .unwrap();
-                    rect.set_position(&Vector2f {
-                        x: ((x as i32) * context.block_size) as f32,
-                        y: ((y as i32) * context.block_size) as f32,
-                    });
-                    rect.set_fill_color(&rect_color);
-
-                    let mut rs = RenderStates::default();
-                    rs.blend_mode = BlendMode::blend_alpha();
-
-                    canvas.draw_rectangle_shape(&rect, &mut rs);
+                    draw.rect()
+                        .color(rect_color)
+                        .x_y(
+                            ((x as i32) * window_info.block_size - window_info.width / 2) as f32,
+                            (-(y as i32) * window_info.block_size + window_info.height / 2) as f32,
+                        )
+                        .width(window_info.block_size as f32)
+                        .height(window_info.block_size as f32);
                 }
             }
         }
-
-        Ok(())
     }
 
     fn gaussian(&mut self, x: f32, b: f32) -> f32 {
