@@ -59,9 +59,9 @@ fn build_context(app: &App) -> BuildContext {
     BuildContext {
         window_info: window_info.clone(),
         draw_grid_lines: false,
-        // model: Model::forest(Forest::new()),
+        model: Model::FOREST(Forest::new(&app)),
         // model: Model::rps(RockPaperScissor::new(&window_info)),
-        model: Model::NCA(NeuralCellular::new(&window_info)),
+        // model: Model::NCA(NeuralCellular::new(&window_info)),
         window_id,
     }
 }
@@ -117,10 +117,10 @@ fn update(_app: &App, context: &mut BuildContext, _update: Update) {
 }
 
 fn view(app: &App, context: &BuildContext, frame: Frame) {
-    let mut draw = app.draw().blend(BlendComponent::OVER);
+    let mut draw = app.draw().alpha_blend(BLEND_ADD);
 
     match &context.model {
-        Model::FOREST(ref f) => f.draw(&mut draw),
+        Model::FOREST(ref f) => f.draw(&app, &mut draw),
         Model::RPS(ref r) => r.draw(&context.window_info, &mut draw, &app),
         Model::NCA(ref n) => {
             frame.clear(context.window_info.bg_color);

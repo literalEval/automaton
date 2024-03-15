@@ -1,18 +1,26 @@
 use std::f32::consts::PI;
 
 use nannou::{
-    color::{self, hsl, Rgb, Rgba},
+    color::{self, hsl, Rgb, Rgba, BLACK},
     event::MouseButton,
-    geom::Point2,
+    geom::{Point2, Rect},
+    glam::Vec2,
     state::mouse::ButtonMap,
-    Draw, Event, Frame,
+    wgpu::{self, Texture},
+    App, Draw, Event, Frame,
 };
 use rand::Rng;
 
 use crate::BuildContext;
 
+#[derive(Clone, Debug, Copy)]
+enum RootType {
+    STEM,
+    FLOWER,
+}
+
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Root {
+struct Root {
     x: f32,
     y: f32,
     dx: f32,
@@ -24,20 +32,28 @@ pub(crate) struct Root {
     dax: f32,
     day: f32,
     max_size: f32,
+    root_type: RootType,
+    flower_type: u8,
 }
 
 pub(crate) struct Forest {
     cur_draw_color: i32,
     buf: Vec<Root>,
     wrap_on_edge: bool,
+    flowers: Texture,
 }
 
 impl Forest {
-    pub fn new() -> Self {
+    pub fn new(app: &App) -> Self {
+        let assets = app.assets_path().unwrap();
+        let img_path = assets.join("flowers.png");
+        let flowers = wgpu::Texture::from_path(app, img_path).unwrap();
+
         Self {
             cur_draw_color: 2,
             buf: vec![],
             wrap_on_edge: true,
+            flowers,
         }
     }
 
@@ -56,6 +72,8 @@ impl Forest {
             dax: rand_gen.gen_range(0.1..=0.9),
             day: rand_gen.gen_range(0.1..=0.9),
             max_size: rand_gen.gen_range(3.0..=8.0),
+            root_type: RootType::STEM,
+            flower_type: 0,
         }
     }
 
@@ -78,47 +96,90 @@ impl Forest {
     }
 
     pub fn mutate(&mut self) {
-        let mut old_buf = vec![];
+        let mut new_buf = vec![];
 
         for cur_buf in &mut self.buf {
-            if cur_buf.size.le(&cur_buf.max_size) {
-                cur_buf.size += cur_buf.ds;
-                cur_buf.x += cur_buf.dx + cur_buf.angle_x.sin();
-                cur_buf.y += cur_buf.dy + cur_buf.angle_y.sin();
-                cur_buf.angle_x += cur_buf.dax;
-                cur_buf.angle_y += cur_buf.day;
-                old_buf.push(cur_buf.clone());
+            match &cur_buf.root_type {
+                RootType::STEM => {
+                    cur_buf.size += cur_buf.ds;
+                    cur_buf.x += cur_buf.dx + cur_buf.angle_x.sin();
+                    cur_buf.y += cur_buf.dy + cur_buf.angle_y.sin();
+                    cur_buf.angle_x += cur_buf.dax;
+                    cur_buf.angle_y += cur_buf.day;
+
+                    if cur_buf.size.ge(&cur_buf.max_size) {
+                        cur_buf.size = 1.;
+                        cur_buf.root_type = RootType::FLOWER;
+
+                        let mut rand_gen = rand::thread_rng();
+                        cur_buf.flower_type = rand_gen.gen_range(0..=8);
+                    }
+
+                    new_buf.push(cur_buf.clone());
+                }
+
+                RootType::FLOWER => {
+                    cur_buf.size += cur_buf.ds * 2.;
+                    cur_buf.angle_x += cur_buf.dax;
+
+                    if cur_buf.size.le(&(cur_buf.max_size * 4.)) {
+                        new_buf.push(cur_buf.clone());
+                    }
+                }
             }
         }
 
-        self.buf = old_buf;
+        self.buf = new_buf;
     }
 
-    pub fn draw(&self, draw: &mut Draw) {
+    pub fn draw(&self, app: &App, draw: &mut Draw) {
         for cur_buf in &self.buf {
-            draw.ellipse()
-                .radius(cur_buf.size)
-                .x_y(cur_buf.x, cur_buf.y)
-                // Lightness
-                //
-                // .hsl(
-                //     0.25,
-                //     (cur_buf.size / cur_buf.max_size) / 1.5,
-                //     1. - (cur_buf.size / cur_buf.max_size),
-                // )
-                //
-                .hsl(
-                    (cur_buf.size / cur_buf.max_size).cos(),
-                    (cur_buf.size / cur_buf.max_size).sin(),
-                    (cur_buf.size / cur_buf.max_size) / 2.,
-                )
-                .stroke(Rgba::new(
-                    0.,
-                    0.,
-                    0.,
-                    (cur_buf.size / cur_buf.max_size) * 0.5,
-                ))
-                .stroke_weight((cur_buf.size / cur_buf.max_size) * 0.5);
+            match &cur_buf.root_type {
+                RootType::STEM => {
+                    draw.ellipse()
+                        .radius(cur_buf.size)
+                        .x_y(cur_buf.x, cur_buf.y)
+                        // Lightness
+                        //
+                        // .hsl(
+                        //     0.25,
+                        //     (cur_buf.size / cur_buf.max_size) / 1.5,
+                        //     1. - (cur_buf.size / cur_buf.max_size),
+                        // )
+                        //
+                        .hsl(
+                            0.35,
+                            (cur_buf.size / cur_buf.max_size).cos(),
+                            (cur_buf.size / cur_buf.max_size) / 2.,
+                        )
+                        .stroke(Rgba::new(
+                            0.,
+                            0.,
+                            0.,
+                            (cur_buf.size / cur_buf.max_size) * 0.5,
+                        ))
+                        .stroke_weight((cur_buf.size / cur_buf.max_size) * 0.5);
+                }
+
+                RootType::FLOWER => {
+                    // TODO: Find out why this 16.5% translation is needed.
+                    let crop_area = Rect::from_xy_wh(
+                        Point2::new(
+                            (cur_buf.flower_type % 3) as f32 / 3. + 0.165,
+                            (cur_buf.flower_type / 3) as f32 / 3. + 0.165,
+                        ),
+                        Vec2::new(0.3333, 0.3333),
+                    );
+
+                    draw.texture(&self.flowers)
+                        .area(crop_area)
+                        .width(cur_buf.size)
+                        .height(cur_buf.size)
+                        // .rotate(cur_buf.angle_x)
+                        .x(cur_buf.x)
+                        .y(cur_buf.y);
+                }
+            }
         }
     }
 
