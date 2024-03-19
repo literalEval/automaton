@@ -132,7 +132,7 @@ impl Forest {
         self.buf = new_buf;
     }
 
-    pub fn draw(&self, app: &App, draw: &mut Draw) {
+    pub fn draw(&self, draw: &mut Draw) {
         for cur_buf in &self.buf {
             match &cur_buf.root_type {
                 RootType::STEM => {

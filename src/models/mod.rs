@@ -5,6 +5,7 @@ use crate::BuildContext;
 pub mod forest;
 pub mod neural_cellular;
 pub mod rock_paper_scissor;
+pub mod gravitation;
 
 // pub trait Model {
 //     fn new() -> Self;

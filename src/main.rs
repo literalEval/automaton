@@ -2,6 +2,7 @@ mod models;
 mod utils;
 
 use models::forest::Forest;
+use models::gravitation::Gravitation;
 use models::neural_cellular::NeuralCellular;
 use models::rock_paper_scissor::RockPaperScissor;
 
@@ -25,6 +26,7 @@ enum Model {
     FOREST(Forest),
     NCA(NeuralCellular),
     RPS(RockPaperScissor),
+    PARTICLES(Gravitation),
 }
 
 struct BuildContext {
@@ -56,12 +58,16 @@ fn build_context(app: &App) -> BuildContext {
         is_playing: true,
     };
 
+    let mut particles = Gravitation::new();
+    particles.setup();
+
     BuildContext {
         window_info: window_info.clone(),
         draw_grid_lines: false,
-        model: Model::FOREST(Forest::new(&app)),
-        // model: Model::rps(RockPaperScissor::new(&window_info)),
+        // model: Model::FOREST(Forest::new(&app)),
+        // model: Model::RPS(RockPaperScissor::new(&window_info)),
         // model: Model::NCA(NeuralCellular::new(&window_info)),
+        model: Model::PARTICLES(particles),
         window_id,
     }
 }
@@ -75,6 +81,7 @@ fn handle_mouse_pressed(app: &App, context: &mut BuildContext, button: MouseButt
         Model::NCA(ref mut n) => {
             n.handle_mouse_pressed(&context.window_info, button, app.mouse.position())
         }
+        Model::PARTICLES(ref mut g) => g.handle_mouse_pressed(button, app.mouse.position()),
         _ => {}
     }
 }
@@ -88,6 +95,7 @@ fn handle_mouse_moved(app: &App, context: &mut BuildContext, pos: Point2) {
         Model::NCA(ref mut n) => {
             n.handle_mouse_moved(&context.window_info, &app.mouse.buttons, pos)
         }
+        Model::PARTICLES(ref mut g) => g.handle_mouse_moved(&app.mouse.buttons, pos),
         _ => {}
     }
 }
@@ -96,6 +104,7 @@ fn handle_key_pressed(app: &App, context: &mut BuildContext, key: Key) {
     match &mut context.model {
         Model::RPS(ref mut r) => r.handle_key_pressed(&key),
         Model::NCA(ref mut n) => n.handle_key_pressed(&mut context.window_info, &key),
+        Model::PARTICLES(ref mut g) => g.handle_key_pressed(&mut context.window_info, &key),
         _ => {}
     }
 }
@@ -112,6 +121,7 @@ fn update(_app: &App, context: &mut BuildContext, _update: Update) {
             n.mutate(&context.window_info);
             n.activate();
         }
+        Model::PARTICLES(ref mut g) => g.mutate(),
         _ => {}
     }
 }
@@ -120,11 +130,15 @@ fn view(app: &App, context: &BuildContext, frame: Frame) {
     let mut draw = app.draw().alpha_blend(BLEND_ADD);
 
     match &context.model {
-        Model::FOREST(ref f) => f.draw(&app, &mut draw),
+        Model::FOREST(ref f) => f.draw(&mut draw),
         Model::RPS(ref r) => r.draw(&context.window_info, &mut draw, &app),
         Model::NCA(ref n) => {
             frame.clear(context.window_info.bg_color);
             n.draw(&context.window_info, &mut draw, &app)
+        }
+        Model::PARTICLES(ref g) => {
+            frame.clear(g.bg_color);
+            g.draw(&mut draw)
         }
         _ => {}
     }
