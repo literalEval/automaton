@@ -3,7 +3,7 @@
 - Rock Paper Scissors
 - Neural Cellular Automata
 - Forest
-- Particles - [Clusters](https://www.ventrella.com/Clusters/)
+- Particles - [Clusters](https://www.ventrella.com/Clusters/), [ParticleLife](https://www.youtube.com/watch?v=scvuli-zcRc)
 
 ## TODO
 
